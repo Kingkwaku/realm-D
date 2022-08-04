@@ -1,0 +1,147 @@
+ Instrutions 
+   
+   Execute the following commands:
+   
+   -------------------------------
+   Start by updating your Ubuntu / Debian Linux system:
+  
+   sudo apt -y update
+   
+   -------------------------------
+   Set a proper hostname for your server with correct domain component:
+   
+   
+   hostnamectl set-hostname      [hostname].hfimass.com
+   
+   -------------------------------
+   Confirm DNS ia configured correctly: (optional , DNS should be configured)
+   
+   cat /etc/resolv.conf
+   
+   -------------------------------
+   
+   A number of packages are required for joining an Ubuntu 20.04|18.04 / Debian 10 system to Active Directory (AD) domain:
+   
+   sudo apt -y install realmd libnss-sss libpam-sss sssd sssd-tools adcli samba-common-bin oddjob oddjob-mkhomedir packagekit
+    
+	--------------------------------
+	The realm discover command returns complete domain configuration and a list of packages that must be installed for the system to be enrolled in the domain:
+	
+	
+	realm discover -v HFIMASS.COM
+	
+	You should see output similar to the following:
+	
+  hfimass.org.com
+  type: kerberos
+  realm-name: EXAMPLE.COM
+  domain-name: example.com
+  configured: no
+  server-software: active-directory
+  client-software: sssd
+  required-package: sssd-tools
+  required-package: sssd
+  required-package: libnss-sss
+  required-package: libpam-sss
+  required-package: adcli
+  required-package: samba-common-bin
+  
+  -----------------------------
+  
+  Edit  /etc/sssd/sssd.conf 
+
+
+[nss]
+filter_groups = root
+filter_users = root
+reconnection_retries = 3
+
+[pam]
+reconnection_retries = 3
+
+[service]
+automatic-install = no
+
+------------------
+
+Edit /usr/share/pam-configs/mkhomedir , or create the sssd.conf file if it does not already exist. Add the following and then write abd save file:
+	
+Name: Create home directory on login
+Default: yes
+Priority: 900
+Session-Type: Additional
+#Session-Interactive-Only: yes
+Session:
+        optional                        pam_mkhomedir.so <--EOF
+	
+	
+	Next:
+	
+    sudo pam-auth-update
+	
+	Select <OK>
+	
+	Ensure  “activate mkhomedir” is selected, it should have [*]
+	
+	Then Select <Ok> to save changes 
+	
+---------------------
+
+Your sssd.conf configuration file is located at /etc/sssd/sssd.conf. Whenever there is a change in the file, restart is required:
+
+systemctl restart sssd
+
+systemctl status sssd
+
+----------------------
+Join The Realm: exexute the following with a user that is a AD Admin that is allowed to join computers to AD. 
+ (it will prompt you for a password)
+
+  realm join -U dafrifa HFIMASS.COM
+-----------------------
+Execute this command View current realmd details:
+ 
+ realm  list
+	
+You should see output similar to the following:
+	
+	
+  hfimass.com
+  type: kerberos
+  realm-name: HFIMASS.COM
+  domain-name: hfimass.com
+  configured: kerberos-member
+  server-software: active-directory
+  client-software: sssd
+  required-package: sssd-tools
+  required-package: sssd
+  required-package: libnss-sss
+  required-package: libpam-sss
+  required-package: adcli
+  required-package: samba-common-bin
+  login-formats: %U@hfimass.com
+  login-policy: allow-permitted-logins
+  permitted-logins: 
+  permitted-groups: 
+	
+	
+
+	----------------------------------------------------------------------------------------------
+    If the integration is working, it should be possible to get an AD user info:
+	
+    id dafrifa@HFIMASS.COM
+	
+	
+	You should see output similar to the following:
+	
+	uid=158408739(dafrifa@hfimass.com) gid=158400513(domain users@hfimass.com) groups=158400513(domain users@hfimass.com),158407808(data_analysis_team@hfimass.com),158407690(#rpt_classified@hfimass.com),158407691(#rpt_topsecret@hfimass.com),158408074(o365_licensing@hfimass.com),158407444(rptdevdesigner@hfimass.com),158400512(domain admins@hfimass.com),158407443(rptclassified@hfimass.com),158408041(technology@hfimass.com),158407446(rpttopsecret@hfimass.com),158408017(employees@hfimass.com),158408038(techdata@hfimass.com),158408039(techengr@hfimass.com),158400572(denied rodc password replication group@hfimass.com),158403082(#fax_finance@hfimass.com),158406147(#compliance@hfimass.com),158403086(#fax_admin@hfimass.com),158403083(#fax_ssi@hfimass.com),158407445(rptgeneral@hfimass.com),158408025(hfi_all@hfimass.com)
+	
+	---------------------
+   
+   To permit a user access via SSH and console, use the command:
+
+   realm permit dafrifa@HFIMASS.COM
+   
+   
+   
+   Done
